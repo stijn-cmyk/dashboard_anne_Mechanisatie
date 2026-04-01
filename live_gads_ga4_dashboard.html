@@ -1,0 +1,302 @@
+
+<style>
+.db{background:#0f1117;color:#e8eaf0;padding:20px;border-radius:12px;font-family:system-ui,sans-serif;min-height:500px}
+.db-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+.db-logo{width:30px;height:30px;border-radius:7px;background:#4285f4;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:600;font-size:13px}
+.db-title{font-size:15px;font-weight:500;color:#e8eaf0}
+.db-sub{font-size:11px;color:#8890a4}
+.sync-btn{font-size:11px;background:#1e2330;border:1px solid rgba(255,255,255,0.1);color:#8890a4;padding:5px 12px;border-radius:6px;cursor:pointer}
+.sync-btn:hover{color:#e8eaf0;border-color:rgba(255,255,255,0.2)}
+.tabs{display:flex;gap:3px;background:#181c24;padding:3px;border-radius:7px;width:fit-content;margin-bottom:18px}
+.tab{padding:6px 14px;border-radius:5px;border:none;background:transparent;color:#8890a4;font-size:12px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:5px}
+.tab.on{background:#1e2330;color:#e8eaf0}
+.dot{width:6px;height:6px;border-radius:50%}
+.mgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:9px;margin-bottom:16px}
+.mc{background:#1e2330;border:1px solid rgba(255,255,255,0.06);border-radius:9px;padding:12px 14px}
+.mc-label{font-size:10px;color:#8890a4;text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px}
+.mc-val{font-size:20px;font-weight:600;color:#e8eaf0;line-height:1.1}
+.mc-sub{font-size:10px;color:#8890a4;margin-top:3px}
+.charts-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.cc{background:#1e2330;border:1px solid rgba(255,255,255,0.06);border-radius:9px;padding:14px}
+.cc-title{font-size:10px;color:#8890a4;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px}
+.tbl-wrap{background:#1e2330;border:1px solid rgba(255,255,255,0.06);border-radius:9px;padding:14px;overflow-x:auto}
+.tbl-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.tbl-title{font-size:13px;font-weight:500;color:#e8eaf0}
+.tbl-badge{font-size:10px;color:#8890a4;background:#0f1117;padding:2px 7px;border-radius:4px}
+table{width:100%;border-collapse:collapse;min-width:400px}
+th{font-size:10px;color:#8890a4;text-align:left;padding:7px 8px;border-bottom:1px solid rgba(255,255,255,0.06);font-weight:500;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}
+td{font-size:12px;padding:9px 8px;border-bottom:1px solid rgba(255,255,255,0.04);color:#e8eaf0;white-space:nowrap}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(255,255,255,0.02)}
+.pane{display:none}
+.pane.on{display:block}
+.loading{text-align:center;padding:40px;color:#8890a4;font-size:13px}
+.err{text-align:center;padding:30px;color:#ea4335;font-size:12px}
+@media(max-width:540px){.charts-row{grid-template-columns:1fr}.mgrid{grid-template-columns:repeat(2,1fr)}}
+</style>
+
+<div class="db">
+  <div class="db-header">
+    <div style="display:flex;align-items:center;gap:10px">
+      <div class="db-logo">C</div>
+      <div>
+        <div class="db-title">Client Dashboard</div>
+        <div class="db-sub" id="last-sync">Laden...</div>
+      </div>
+    </div>
+    <button class="sync-btn" onclick="loadAll()">Vernieuwen</button>
+  </div>
+
+  <div class="tabs">
+    <button class="tab on" onclick="switchTab('gads',this)"><span class="dot" style="background:#4285f4"></span>Google Ads</button>
+    <button class="tab" onclick="switchTab('ga4',this)"><span class="dot" style="background:#34a853"></span>GA4</button>
+  </div>
+
+  <div class="pane on" id="pane-gads">
+    <div class="loading" id="gads-loading">Google Ads data ophalen...</div>
+    <div id="gads-content" style="display:none">
+      <div class="mgrid" id="gads-metrics"></div>
+      <div class="charts-row">
+        <div class="cc"><div class="cc-title">Clicks per dag</div><div style="position:relative;height:160px"><canvas id="gads-clicks-chart"></canvas></div></div>
+        <div class="cc"><div class="cc-title">Spend per dag</div><div style="position:relative;height:160px"><canvas id="gads-spend-chart"></canvas></div></div>
+      </div>
+      <div class="tbl-wrap">
+        <div class="tbl-hdr"><span class="tbl-title">Campagnes</span><span class="tbl-badge" id="gads-count"></span></div>
+        <table><thead><tr><th>Campagne</th><th>Impressions</th><th>Clicks</th><th>CTR</th><th>Spend</th></tr></thead><tbody id="gads-tbody"></tbody></table>
+      </div>
+    </div>
+    <div class="err" id="gads-err" style="display:none"></div>
+  </div>
+
+  <div class="pane" id="pane-ga4">
+    <div class="loading" id="ga4-loading">GA4 data ophalen...</div>
+    <div id="ga4-content" style="display:none">
+      <div class="mgrid" id="ga4-metrics"></div>
+      <div class="charts-row">
+        <div class="cc"><div class="cc-title">Sessies per kanaal</div><div style="position:relative;height:160px"><canvas id="ga4-sessions-chart"></canvas></div></div>
+        <div class="cc"><div class="cc-title">Key events per dag</div><div style="position:relative;height:160px"><canvas id="ga4-events-chart"></canvas></div></div>
+      </div>
+      <div class="tbl-wrap">
+        <div class="tbl-hdr"><span class="tbl-title">Kanalen</span><span class="tbl-badge" id="ga4-count"></span></div>
+        <table><thead><tr><th>Kanaal</th><th>Sessies</th><th>Engagement rate</th><th>Avg. tijd (sec)</th><th>Events</th><th>Key events</th></tr></thead><tbody id="ga4-tbody"></tbody></table>
+      </div>
+    </div>
+    <div class="err" id="ga4-err" style="display:none"></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+const GADS_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTY98ij8QRHdioBNs2qO2CtII4QBJYsFH52TVRbrFKNPSCMsXHTu5LueX_04IQtICQgmOIPWflRwx0s/pub?gid=912066502&single=true&output=csv';
+const GA4_URL  = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTY98ij8QRHdioBNs2qO2CtII4QBJYsFH52TVRbrFKNPSCMsXHTu5LueX_04IQtICQgmOIPWflRwx0s/pub?gid=411900160&single=true&output=csv';
+
+const chartOpts = (color) => ({
+  responsive:true, maintainAspectRatio:false,
+  plugins:{legend:{display:false}},
+  scales:{
+    x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#8890a4',font:{size:9},maxTicksLimit:7}},
+    y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#8890a4',font:{size:9}}}
+  }
+});
+
+let gadsChart1, gadsChart2, ga4Chart1, ga4Chart2;
+
+function parseCSV(text) {
+  const lines = text.trim().split('\n');
+  const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g,''));
+  return lines.slice(1).filter(l=>l.trim()).map(line => {
+    const vals = [];
+    let cur='', inQ=false;
+    for(let c of line){
+      if(c==='"'){inQ=!inQ}
+      else if(c===','&&!inQ){vals.push(cur.trim());cur=''}
+      else cur+=c;
+    }
+    vals.push(cur.trim());
+    const obj={};
+    headers.forEach((h,i)=>obj[h]=vals[i]||'');
+    return obj;
+  });
+}
+
+function metricCard(label, value, sub='') {
+  return `<div class="mc"><div class="mc-label">${label}</div><div class="mc-val">${value}</div>${sub?`<div class="mc-sub">${sub}</div>`:''}</div>`;
+}
+
+function fmt(n, dec=0) {
+  const num = parseFloat(n)||0;
+  return num.toLocaleString('nl-BE', {minimumFractionDigits:dec, maximumFractionDigits:dec});
+}
+
+function fmtEur(n) {
+  return '€' + fmt(n, 2);
+}
+
+async function loadGads() {
+  try {
+    const res = await fetch(GADS_URL);
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    const text = await res.text();
+    const rows = parseCSV(text);
+    if(!rows.length) throw new Error('Geen data gevonden');
+
+    const totalImpr = rows.reduce((s,r)=>s+(parseFloat(r['Impressions'])||0),0);
+    const totalClicks = rows.reduce((s,r)=>s+(parseFloat(r['Clicks'])||0),0);
+    const totalSpend = rows.reduce((s,r)=>s+(parseFloat(r['Spend'])||0),0);
+    const avgCTR = totalImpr>0 ? (totalClicks/totalImpr*100) : 0;
+
+    document.getElementById('gads-metrics').innerHTML =
+      metricCard('Total spend', fmtEur(totalSpend)) +
+      metricCard('Impressions', fmt(totalImpr)) +
+      metricCard('Clicks', fmt(totalClicks)) +
+      metricCard('Gem. CTR', fmt(avgCTR,2)+'%');
+
+    const byCampaign = {};
+    rows.forEach(r=>{
+      const c = r['Campaign']||r['campaign']||'Onbekend';
+      if(!byCampaign[c]) byCampaign[c]={impr:0,clicks:0,spend:0,ctr:[]};
+      byCampaign[c].impr  += parseFloat(r['Impressions'])||0;
+      byCampaign[c].clicks+= parseFloat(r['Clicks'])||0;
+      byCampaign[c].spend += parseFloat(r['Spend'])||0;
+      byCampaign[c].ctr.push(parseFloat(r['CTR (%)'])||0);
+    });
+
+    const tbody = document.getElementById('gads-tbody');
+    tbody.innerHTML = Object.entries(byCampaign).map(([name,d])=>`
+      <tr>
+        <td>${name}</td>
+        <td>${fmt(d.impr)}</td>
+        <td>${fmt(d.clicks)}</td>
+        <td>${fmt(d.impr>0?d.clicks/d.impr*100:0,2)}%</td>
+        <td>${fmtEur(d.spend)}</td>
+      </tr>`).join('');
+    document.getElementById('gads-count').textContent = Object.keys(byCampaign).length + ' campagnes';
+
+    const byDay = {};
+    rows.forEach(r=>{
+      const d = r['Day']||r['day']||r['Date']||r['date']||'';
+      if(!byDay[d]) byDay[d]={clicks:0,spend:0};
+      byDay[d].clicks += parseFloat(r['Clicks'])||0;
+      byDay[d].spend  += parseFloat(r['Spend'])||0;
+    });
+    const dayLabels = Object.keys(byDay).sort().slice(-30);
+    const dayClicks = dayLabels.map(d=>byDay[d].clicks);
+    const daySpend  = dayLabels.map(d=>byDay[d].spend);
+
+    if(gadsChart1) gadsChart1.destroy();
+    if(gadsChart2) gadsChart2.destroy();
+
+    gadsChart1 = new Chart(document.getElementById('gads-clicks-chart'),{
+      type:'bar',
+      data:{labels:dayLabels,datasets:[{data:dayClicks,backgroundColor:'rgba(66,133,244,0.7)',borderRadius:2,borderSkipped:false}]},
+      options:chartOpts('#4285f4')
+    });
+    gadsChart2 = new Chart(document.getElementById('gads-spend-chart'),{
+      type:'line',
+      data:{labels:dayLabels,datasets:[{data:daySpend,borderColor:'#fbbc04',backgroundColor:'rgba(251,188,4,0.08)',fill:true,tension:0.4,pointRadius:0,borderWidth:2}]},
+      options:chartOpts('#fbbc04')
+    });
+
+    document.getElementById('gads-loading').style.display='none';
+    document.getElementById('gads-content').style.display='block';
+  } catch(e) {
+    document.getElementById('gads-loading').style.display='none';
+    document.getElementById('gads-err').style.display='block';
+    document.getElementById('gads-err').textContent = 'Kon Google Ads data niet laden: ' + e.message;
+  }
+}
+
+async function loadGA4() {
+  try {
+    const res = await fetch(GA4_URL);
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    const text = await res.text();
+    const rows = parseCSV(text);
+    if(!rows.length) throw new Error('Geen data gevonden');
+
+    const totalSess  = rows.reduce((s,r)=>s+(parseFloat(r['Sessions'])||0),0);
+    const totalEvents= rows.reduce((s,r)=>s+(parseFloat(r['Event Count'])||0),0);
+    const totalKey   = rows.reduce((s,r)=>s+(parseFloat(r['Key Events'])||0),0);
+    const avgEng     = rows.length ? rows.reduce((s,r)=>s+(parseFloat(r['Engagement Rate (%)'])||0),0)/rows.length : 0;
+
+    document.getElementById('ga4-metrics').innerHTML =
+      metricCard('Sessies', fmt(totalSess)) +
+      metricCard('Gem. engagement', fmt(avgEng,1)+'%') +
+      metricCard('Events', fmt(totalEvents)) +
+      metricCard('Key events', fmt(totalKey));
+
+    const byChannel = {};
+    rows.forEach(r=>{
+      const ch = r['Channel Group']||r['channel group']||r['Channel']||'Onbekend';
+      if(!byChannel[ch]) byChannel[ch]={sess:0,eng:[],time:[],events:0,key:0};
+      byChannel[ch].sess   += parseFloat(r['Sessions'])||0;
+      byChannel[ch].eng.push(parseFloat(r['Engagement Rate (%)'])||0);
+      byChannel[ch].time.push(parseFloat(r['Avg Engagement Time (sec)'])||0);
+      byChannel[ch].events += parseFloat(r['Event Count'])||0;
+      byChannel[ch].key    += parseFloat(r['Key Events'])||0;
+    });
+
+    const tbody = document.getElementById('ga4-tbody');
+    tbody.innerHTML = Object.entries(byChannel).sort((a,b)=>b[1].sess-a[1].sess).map(([name,d])=>`
+      <tr>
+        <td>${name}</td>
+        <td>${fmt(d.sess)}</td>
+        <td>${fmt(d.eng.length?d.eng.reduce((a,b)=>a+b,0)/d.eng.length:0,1)}%</td>
+        <td>${fmt(d.time.length?d.time.reduce((a,b)=>a+b,0)/d.time.length:0,0)}</td>
+        <td>${fmt(d.events)}</td>
+        <td>${fmt(d.key)}</td>
+      </tr>`).join('');
+    document.getElementById('ga4-count').textContent = Object.keys(byChannel).length + ' kanalen';
+
+    const chNames = Object.keys(byChannel).sort((a,b)=>byChannel[b].sess-byChannel[a].sess).slice(0,6);
+    const chSess  = chNames.map(c=>byChannel[c].sess);
+    const colors  = ['#4285f4','#34a853','#fbbc04','#ea4335','#5f6368','#1d9e75'];
+
+    if(ga4Chart1) ga4Chart1.destroy();
+    ga4Chart1 = new Chart(document.getElementById('ga4-sessions-chart'),{
+      type:'doughnut',
+      data:{labels:chNames,datasets:[{data:chSess,backgroundColor:colors,borderWidth:0}]},
+      options:{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{legend:{display:true,position:'right',labels:{color:'#8890a4',font:{size:10},boxWidth:8,padding:8}}}}
+    });
+
+    const byDay={};
+    rows.forEach(r=>{
+      const d = r['Date']||r['date']||r['Day']||'';
+      if(!byDay[d]) byDay[d]=0;
+      byDay[d]+=parseFloat(r['Key Events'])||0;
+    });
+    const dLabels=Object.keys(byDay).sort().slice(-30);
+    const dVals=dLabels.map(d=>byDay[d]);
+
+    if(ga4Chart2) ga4Chart2.destroy();
+    ga4Chart2 = new Chart(document.getElementById('ga4-events-chart'),{
+      type:'bar',
+      data:{labels:dLabels,datasets:[{data:dVals,backgroundColor:'rgba(52,168,83,0.7)',borderRadius:2,borderSkipped:false}]},
+      options:chartOpts('#34a853')
+    });
+
+    document.getElementById('ga4-loading').style.display='none';
+    document.getElementById('ga4-content').style.display='block';
+  } catch(e) {
+    document.getElementById('ga4-loading').style.display='none';
+    document.getElementById('ga4-err').style.display='block';
+    document.getElementById('ga4-err').textContent = 'Kon GA4 data niet laden: ' + e.message;
+  }
+}
+
+function switchTab(tab, btn) {
+  document.querySelectorAll('.pane').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('on'));
+  document.getElementById('pane-'+tab).classList.add('on');
+  btn.classList.add('on');
+}
+
+function loadAll() {
+  document.getElementById('last-sync').textContent = 'Vernieuwen...';
+  Promise.all([loadGads(), loadGA4()]).then(()=>{
+    document.getElementById('last-sync').textContent = 'Gesynchroniseerd: ' + new Date().toLocaleTimeString('nl-BE');
+  });
+}
+
+loadAll();
+</script>
