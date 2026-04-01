@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Client Dashboard — Google Ads & GA4</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0a0d14;color:#e8eaf0;font-family:system-ui,sans-serif;min-height:100vh;padding:24px}
+.header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px}
+.header-left{display:flex;align-items:center;gap:12px}
+.logo{width:36px;height:36px;border-radius:9px;background:#4285f4;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:15px;flex-shrink:0}
+.title{font-size:16px;font-weight:600}
+.subtitle{font-size:12px;color:#6b7280;margin-top:1px}
+.header-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.sync-btn{font-size:12px;background:#1e2535;border:1px solid rgba(255,255,255,0.1);color:#9ca3af;padding:7px 14px;border-radius:7px;cursor:pointer;font-family:inherit;transition:all .15s}
+.sync-btn:hover{color:#e8eaf0;border-color:rgba(255,255,255,0.2)}
+.sync-status{font-size:11px;color:#6b7280}
+
+/* DATE RANGE PICKER */
+.drp-wrap{position:relative}
+.drp-trigger{display:flex;align-items:center;gap:8px;background:#151921;border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:7px 12px;cursor:pointer;font-size:12px;color:#e8eaf0;user-select:none;white-space:nowrap}
+.drp-trigger:hover{border-color:rgba(255,255,255,0.18)}
+.drp-trigger svg{flex-shrink:0}
+.drp-popup{display:none;position:absolute;top:calc(100% + 6px);right:0;background:#1a1f2e;border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:16px;z-index:100;box-shadow:0 8px 32px rgba(0,0,0,0.5);min-width:580px}
+.drp-popup.open{display:flex;gap:24px}
+.drp-cal{flex:1}
+.drp-cal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.drp-cal-title{font-size:13px;font-weight:600;color:#e8eaf0}
+.drp-nav{background:none;border:none;color:#6b7280;cursor:pointer;font-size:16px;padding:2px 8px;border-radius:4px;line-height:1}
+.drp-nav:hover{color:#e8eaf0;background:rgba(255,255,255,0.06)}
+.drp-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.drp-dow{font-size:10px;color:#6b7280;text-align:center;padding:4px 0;font-weight:500}
+.drp-day{font-size:12px;text-align:center;padding:6px 2px;border-radius:5px;cursor:pointer;color:#9ca3af;border:none;background:none;width:100%;font-family:inherit}
+.drp-day:hover{background:rgba(255,255,255,0.08);color:#e8eaf0}
+.drp-day.in-range{background:rgba(66,133,244,0.15);color:#e8eaf0;border-radius:0}
+.drp-day.range-start,.drp-day.range-end{background:#4285f4;color:#fff;border-radius:5px}
+.drp-day.range-start{border-radius:5px 0 0 5px}
+.drp-day.range-end{border-radius:0 5px 5px 0}
+.drp-day.range-start.range-end{border-radius:5px}
+.drp-day.other-month{color:#3a3f50}
+.drp-day.today{font-weight:700;color:#4285f4}
+.drp-presets{display:flex;flex-direction:column;gap:4px;min-width:120px;border-left:1px solid rgba(255,255,255,0.06);padding-left:16px}
+.drp-preset{background:none;border:none;color:#9ca3af;font-size:12px;text-align:left;padding:6px 10px;border-radius:5px;cursor:pointer;font-family:inherit;white-space:nowrap}
+.drp-preset:hover{background:rgba(255,255,255,0.06);color:#e8eaf0}
+.drp-preset.active{background:rgba(66,133,244,0.15);color:#4285f4}
+.drp-footer{display:flex;justify-content:flex-end;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.06)}
+.drp-apply{background:#4285f4;border:none;color:#fff;padding:6px 16px;border-radius:6px;cursor:pointer;font-size:12px;font-family:inherit}
+.drp-cancel{background:none;border:1px solid rgba(255,255,255,0.1);color:#9ca3af;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:12px;font-family:inherit}
+
+.tabs{display:flex;gap:3px;background:#111520;border:1px solid rgba(255,255,255,0.06);padding:3px;border-radius:8px;width:fit-content;margin-bottom:20px}
+.tab{padding:7px 16px;border-radius:6px;border:none;background:transparent;color:#6b7280;font-size:13px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all .15s;font-family:inherit}
+.tab:hover{color:#e8eaf0}
+.tab.on{background:#1e2535;color:#e8eaf0}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.mgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:16px}
+.mc{background:#111520;border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:14px 16px}
+.mc-label{font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+.mc-val{font-size:22px;font-weight:600;line-height:1.1}
+.mc-sub{font-size:11px;color:#6b7280;margin-top:4px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.row1{margin-bottom:12px}
+.cc{background:#111520;border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:16px}
+.cc-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.cc-title{font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:.06em}
+.cc-badge{font-size:10px;color:#6b7280;background:#0a0d14;padding:2px 8px;border-radius:4px}
+table{width:100%;border-collapse:collapse}
+th{font-size:10px;color:#6b7280;text-align:left;padding:8px 10px;border-bottom:1px solid rgba(255,255,255,0.06);font-weight:500;text-transform:uppercase;letter-spacing:.05em;white-space:nowrap}
+td{font-size:12px;padding:10px;border-bottom:1px solid rgba(255,255,255,0.04);white-space:nowrap}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(255,255,255,0.02)}
+.tbl-wrap{overflow-x:auto}
+.pane{display:none}
+.pane.on{display:block}
+.loading{text-align:center;padding:60px;color:#6b7280;font-size:13px}
+.err{text-align:center;padding:40px;color:#ea4335;font-size:12px;background:#1a0f0f;border-radius:10px;border:1px solid rgba(234,67,53,0.2);margin-bottom:12px}
+.bar-bg{background:rgba(255,255,255,0.06);border-radius:3px;height:6px;margin-top:6px}
+.bar-fill{height:6px;border-radius:3px}
+@media(max-width:640px){.row2{grid-template-columns:1fr}.mgrid{grid-template-columns:repeat(2,1fr)}.header{flex-direction:column;align-items:flex-start}.drp-popup{min-width:320px;flex-direction:column}.drp-presets{border-left:none;border-top:1px solid rgba(255,255,255,0.06);padding-left:0;padding-top:12px;flex-direction:row;flex-wrap:wrap}}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <div class="logo">C</div>
+    <div>
+      <div class="title">Client Dashboard</div>
+      <div class="subtitle">Google Ads &amp; GA4 — Live data</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="drp-wrap" id="drp-wrap">
+      <div class="drp-trigger" onclick="togglePicker()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        <span id="drp-label">Selecteer periode</span>
+        <span style="color:#6b7280">▾</span>
+      </div>
+      <div class="drp-popup" id="drp-popup">
+        <div style="flex:1">
+          <div style="display:flex;gap:24px">
+            <div class="drp-cal" id="cal-left"></div>
+            <div class="drp-cal" id="cal-right"></div>
+          </div>
+          <div class="drp-footer">
+            <button class="drp-cancel" onclick="closePicker()">Annuleren</button>
+            <button class="drp-apply" onclick="applyPicker()">Toepassen</button>
+          </div>
+        </div>
+        <div class="drp-presets" id="drp-presets">
+          <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;padding:0 10px 6px">Snelkeuze</div>
+          <button class="drp-preset" onclick="setPreset(7)">Laatste 7 dagen</button>
+          <button class="drp-preset" onclick="setPreset(30)">Laatste 30 dagen</button>
+          <button class="drp-preset" onclick="setPreset(90)">Laatste 90 dagen</button>
+          <button class="drp-preset" onclick="setPresetMonth(0)">Deze maand</button>
+          <button class="drp-preset" onclick="setPresetMonth(-1)">Vorige maand</button>
+          <button class="drp-preset" onclick="setPresetAll()">Alle data</button>
+        </div>
+      </div>
+    </div>
+    <button class="sync-btn" onclick="loadAll()">↻ Vernieuwen</button>
+    <span class="sync-status" id="sync-status">Laden...</span>
+  </div>
+</div>
+
+<div class="tabs">
+  <button class="tab on" onclick="switchTab('gads',this)"><span class="dot" style="background:#4285f4"></span>Google Ads</button>
+  <button class="tab" onclick="switchTab('ga4',this)"><span class="dot" style="background:#34a853"></span>GA4</button>
+  <button class="tab" onclick="switchTab('overview',this)"><span class="dot" style="background:#fbbc04"></span>Overzicht</button>
+</div>
+
+<!-- GOOGLE ADS -->
+<div class="pane on" id="pane-gads">
+  <div class="loading" id="gads-loading">Google Ads data ophalen...</div>
+  <div id="gads-content" style="display:none">
+    <div class="mgrid" id="gads-metrics"></div>
+    <div class="row2">
+      <div class="cc"><div class="cc-head"><span class="cc-title">Clicks per dag</span></div><div style="position:relative;height:180px"><canvas id="c-gads-clicks"></canvas></div></div>
+      <div class="cc"><div class="cc-head"><span class="cc-title">Spend per dag</span></div><div style="position:relative;height:180px"><canvas id="c-gads-spend"></canvas></div></div>
+    </div>
+    <div class="row2">
+      <div class="cc"><div class="cc-head"><span class="cc-title">Impressions per dag</span></div><div style="position:relative;height:180px"><canvas id="c-gads-impr"></canvas></div></div>
+      <div class="cc"><div class="cc-head"><span class="cc-title">CTR evolutie</span></div><div style="position:relative;height:180px"><canvas id="c-gads-ctr"></canvas></div></div>
+    </div>
+    <div class="cc row1">
+      <div class="cc-head"><span class="cc-title">Campagnes</span><span class="cc-badge" id="gads-count"></span></div>
+      <div class="tbl-wrap"><table><thead><tr><th>Campagne</th><th>Impressions</th><th>Clicks</th><th>CTR</th><th>Spend</th><th>CPC</th></tr></thead><tbody id="gads-tbody"></tbody></table></div>
+    </div>
+  </div>
+  <div class="err" id="gads-err" style="display:none"></div>
+</div>
+
+<!-- GA4 -->
+<div class="pane" id="pane-ga4">
+  <div class="loading" id="ga4-loading">GA4 data ophalen...</div>
+  <div id="ga4-content" style="display:none">
+    <div class="mgrid" id="ga4-metrics"></div>
+    <div class="row2">
+      <div class="cc"><div class="cc-head"><span class="cc-title">Organisch bereik — sessies per dag</span></div><div style="position:relative;height:190px"><canvas id="c-ga4-organic"></canvas></div></div>
+      <div class="cc"><div class="cc-head"><span class="cc-title">Sessies per kanaal</span></div><div style="position:relative;height:190px"><canvas id="c-ga4-channels"></canvas></div></div>
+    </div>
+    <div class="row2">
+      <div class="cc"><div class="cc-head"><span class="cc-title">Events per dag</span></div><div style="position:relative;height:180px"><canvas id="c-ga4-events"></canvas></div></div>
+      <div class="cc"><div class="cc-head"><span class="cc-title">Key events per dag</span></div><div style="position:relative;height:180px"><canvas id="c-ga4-keyevents"></canvas></div></div>
+    </div>
+    <div class="cc row1">
+      <div class="cc-head"><span class="cc-title">Engagement rate per kanaal</span></div><div style="position:relative;height:180px"><canvas id="c-ga4-engagement"></canvas></div>
+    </div>
+    <div class="cc row1">
+      <div class="cc-head"><span class="cc-title">Kanalen detail</span><span class="cc-badge" id="ga4-count"></span></div>
+      <div class="tbl-wrap"><table><thead><tr><th>Kanaal</th><th>Sessies</th><th>Aandeel</th><th>Engagement %</th><th>Gem. tijd (s)</th><th>Events</th><th>Key events</th></tr></thead><tbody id="ga4-tbody"></tbody></table></div>
+    </div>
+  </div>
+  <div class="err" id="ga4-err" style="display:none"></div>
+</div>
+
+<!-- OVERVIEW -->
+<div class="pane" id="pane-overview">
+  <div class="loading" id="ov-loading">Overzicht samenstellen...</div>
+  <div id="ov-content" style="display:none">
+    <div class="mgrid" id="ov-metrics"></div>
+    <div class="row2">
+      <div class="cc"><div class="cc-head"><span class="cc-title">Paid vs organisch — sessies</span></div><div style="position:relative;height:200px"><canvas id="c-ov-donut"></canvas></div></div>
+      <div class="cc"><div class="cc-head"><span class="cc-title">Kanaal mix — alle sessies</span></div><div style="position:relative;height:200px"><canvas id="c-ov-mix"></canvas></div></div>
+    </div>
+    <div class="cc row1">
+      <div class="cc-head"><span class="cc-title">Kanaal breakdown</span></div>
+      <div id="ov-bars"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const GADS_URL='https://docs.google.com/spreadsheets/d/e/2PACX-1vTY98ij8QRHdioBNs2qO2CtII4QBJYsFH52TVRbrFKNPSCMsXHTu5LueX_04IQtICQgmOIPWflRwx0s/pub?gid=912066502&single=true&output=csv';
+const GA4_URL ='https://docs.google.com/spreadsheets/d/e/2PACX-1vTY98ij8QRHdioBNs2qO2CtII4QBJYsFH52TVRbrFKNPSCMsXHTu5LueX_04IQtICQgmOIPWflRwx0s/pub?gid=411900160&single=true&output=csv';
+
+let allGads=[],allGA4=[],dateFrom=null,dateTo=null;
+const charts={};
+
+// ---- DATE PARSING ----
+// GA4: YYYYMMDD (20260125), GAds: YYYY-MM-DD (2025-09-09)
+function parseDate(str){
+  if(!str) return null;
+  str=String(str).trim();
+  if(/^\d{8}$/.test(str)) return new Date(str.slice(0,4)+'-'+str.slice(4,6)+'-'+str.slice(6,8));
+  if(/^\d{4}-\d{2}-\d{2}/.test(str)) return new Date(str.slice(0,10));
+  if(/^\d{2}\/\d{2}\/\d{4}/.test(str)){const p=str.split('/');return new Date(p[2]+'-'+p[1]+'-'+p[0]);}
+  const d=new Date(str); return isNaN(d)?null:d;
+}
+function toISO(d){return d.toISOString().slice(0,10);}
+function fmtLabel(d){return (d.getMonth()+1).toString().padStart(2,'0')+'-'+d.getDate().toString().padStart(2,'0');}
+
+// ---- CALENDAR PICKER ----
+let pickerFrom=null,pickerTo=null,pickerHover=null;
+let leftMonth=new Date(),rightMonth=new Date();
+
+function togglePicker(){
+  const p=document.getElementById('drp-popup');
+  if(p.classList.contains('open')){closePicker();}
+  else{
+    pickerFrom=dateFrom?new Date(dateFrom):null;
+    pickerTo=dateTo?new Date(dateTo):null;
+    if(pickerFrom){leftMonth=new Date(pickerFrom.getFullYear(),pickerFrom.getMonth(),1);}
+    else{leftMonth=new Date(); leftMonth.setDate(1);}
+    rightMonth=new Date(leftMonth.getFullYear(),leftMonth.getMonth()+1,1);
+    p.classList.add('open');
+    renderCals();
+  }
+}
+function closePicker(){document.getElementById('drp-popup').classList.remove('open');}
+document.addEventListener('click',e=>{if(!document.getElementById('drp-wrap').contains(e.target))closePicker();});
+
+function renderCals(){
+  renderCal('cal-left',leftMonth);
+  renderCal('cal-right',rightMonth);
+}
+
+function renderCal(id,monthDate){
+  const y=monthDate.getFullYear(),m=monthDate.getMonth();
+  const monthNames=['Januari','Februari','Maart','April','Mei','Juni','Juli','Augustus','September','Oktober','November','December'];
+  const dows=['Ma','Di','Wo','Do','Vr','Za','Zo'];
+  const first=new Date(y,m,1);
+  let startDow=first.getDay()-1; if(startDow<0)startDow=6;
+  const daysInMonth=new Date(y,m+1,0).getDate();
+  const today=new Date(); today.setHours(0,0,0,0);
+
+  let html=`<div class="drp-cal-header">
+    <button class="drp-nav" onclick="navCal('${id}',-1)">&#8592;</button>
+    <span class="drp-cal-title">${monthNames[m]} ${y}</span>
+    <button class="drp-nav" onclick="navCal('${id}',1)">&#8594;</button>
+  </div><div class="drp-grid">`;
+  dows.forEach(d=>html+=`<div class="drp-dow">${d}</div>`);
+  for(let i=0;i<startDow;i++) html+=`<button class="drp-day other-month"></button>`;
+  for(let d=1;d<=daysInMonth;d++){
+    const cur=new Date(y,m,d);
+    cur.setHours(0,0,0,0);
+    let cls='drp-day';
+    if(cur.getTime()===today.getTime()) cls+=' today';
+    if(pickerFrom&&cur.getTime()===pickerFrom.getTime()) cls+=' range-start';
+    if(pickerTo&&cur.getTime()===pickerTo.getTime()) cls+=' range-end';
+    if(pickerFrom&&pickerTo&&cur>pickerFrom&&cur<pickerTo) cls+=' in-range';
+    if(pickerFrom&&!pickerTo&&pickerHover&&cur>pickerFrom&&cur<=pickerHover) cls+=' in-range';
+    html+=`<button class="${cls}" onclick="selectDay(${y},${m},${d})" onmouseover="hoverDay(${y},${m},${d})">${d}</button>`;
+  }
+  html+='</div>';
+  document.getElementById(id).innerHTML=html;
+}
+
+function navCal(id,dir){
+  if(id==='cal-left'){leftMonth=new Date(leftMonth.getFullYear(),leftMonth.getMonth()+dir,1);}
+  else{rightMonth=new Date(rightMonth.getFullYear(),rightMonth.getMonth()+dir,1);}
+  renderCals();
+}
+
+function selectDay(y,m,d){
+  const sel=new Date(y,m,d); sel.setHours(0,0,0,0);
+  if(!pickerFrom||pickerTo){pickerFrom=sel;pickerTo=null;pickerHover=null;}
+  else if(sel<pickerFrom){pickerTo=pickerFrom;pickerFrom=sel;}
+  else{pickerTo=sel;}
+  renderCals();
+}
+
+function hoverDay(y,m,d){
+  if(pickerFrom&&!pickerTo){pickerHover=new Date(y,m,d);renderCals();}
+}
+
+function setPreset(days){
+  const to=new Date(); to.setHours(0,0,0,0);
+  const from=new Date(); from.setDate(to.getDate()-days+1); from.setHours(0,0,0,0);
+  pickerFrom=from;pickerTo=to;
+  leftMonth=new Date(from.getFullYear(),from.getMonth(),1);
+  rightMonth=new Date(leftMonth.getFullYear(),leftMonth.getMonth()+1,1);
+  renderCals();
+}
+
+function setPresetMonth(offset){
+  const now=new Date();
+  const y=now.getFullYear(),m=now.getMonth()+offset;
+  pickerFrom=new Date(y,m,1); pickerFrom.setHours(0,0,0,0);
+  pickerTo=new Date(y,m+1,0); pickerTo.setHours(0,0,0,0);
+  leftMonth=new Date(y,m,1);
+  rightMonth=new Date(y,m+1,1);
+  renderCals();
+}
+
+function setPresetAll(){
+  const allDates=[...allGA4.map(r=>parseDate(r['Date']||'')), ...allGads.map(r=>parseDate(r['Day']||''))].filter(Boolean);
+  if(!allDates.length) return;
+  pickerFrom=new Date(Math.min(...allDates)); pickerFrom.setHours(0,0,0,0);
+  pickerTo=new Date(Math.max(...allDates)); pickerTo.setHours(0,0,0,0);
+  leftMonth=new Date(pickerFrom.getFullYear(),pickerFrom.getMonth(),1);
+  rightMonth=new Date(leftMonth.getFullYear(),leftMonth.getMonth()+1,1);
+  renderCals();
+}
+
+function applyPicker(){
+  if(!pickerFrom) return;
+  dateFrom=new Date(pickerFrom); dateFrom.setHours(0,0,0,0);
+  dateTo=pickerTo?new Date(pickerTo):new Date(pickerFrom);
+  dateTo.setHours(23,59,59,999);
+  updateLabel();
+  closePicker();
+  renderAll();
+}
+
+function updateLabel(){
+  if(!dateFrom) return;
+  const fmt=d=>d.toLocaleDateString('nl-BE',{day:'numeric',month:'short',year:'numeric'});
+  document.getElementById('drp-label').textContent=fmt(dateFrom)+(dateTo&&toISO(dateTo)!==toISO(dateFrom)?' → '+fmt(dateTo):'');
+}
+
+// ---- DATA ----
+function filterRows(rows,col){
+  if(!dateFrom||!dateTo) return rows;
+  return rows.filter(r=>{
+    const d=parseDate(r[col]||r['Date']||r['date']||'');
+    return d&&d>=dateFrom&&d<=dateTo;
+  });
+}
+
+function parseCSV(text){
+  const lines=text.trim().split('\n');
+  const headers=lines[0].split(',').map(h=>h.trim().replace(/^"|"$/g,''));
+  return lines.slice(1).filter(l=>l.trim()).map(line=>{
+    const vals=[];let cur='',inQ=false;
+    for(let c of line){if(c==='"'){inQ=!inQ}else if(c===','&&!inQ){vals.push(cur.trim());cur=''}else cur+=c;}
+    vals.push(cur.trim());
+    const obj={};headers.forEach((h,i)=>obj[h]=(vals[i]||'').replace(/^"|"$/g,''));
+    return obj;
+  });
+}
+
+function fmt(n,dec=0){return(parseFloat(n)||0).toLocaleString('nl-BE',{minimumFractionDigits:dec,maximumFractionDigits:dec})}
+function fmtEur(n){return'€'+fmt(n,2)}
+function mc(label,val,sub=''){return`<div class="mc"><div class="mc-label">${label}</div><div class="mc-val">${val}</div>${sub?`<div class="mc-sub">${sub}</div>`:''}</div>`}
+
+const COLORS=['#4285f4','#34a853','#fbbc04','#ea4335','#1d9e75','#8ab4f8','#81c995','#f6ae2d'];
+
+function mkChart(id,type,labels,data,color,fill=false){
+  if(charts[id])charts[id].destroy();
+  const ds=type==='bar'
+    ?{data,backgroundColor:color+'b3',borderRadius:2,borderSkipped:false}
+    :{data,borderColor:color,backgroundColor:color+'14',fill,tension:0.4,pointRadius:0,borderWidth:2};
+  charts[id]=new Chart(document.getElementById(id),{
+    type,data:{labels,datasets:[ds]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#6b7280',font:{size:9},maxTicksLimit:8}},
+              y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#6b7280',font:{size:9}}}}}
+  });
+}
+
+// ---- RENDER GADS ----
+function renderGads(rows){
+  document.getElementById('gads-err').style.display='none';
+  if(!rows.length){
+    document.getElementById('gads-loading').style.display='none';
+    document.getElementById('gads-err').textContent='Geen Google Ads data in geselecteerde periode.';
+    document.getElementById('gads-err').style.display='block';
+    document.getElementById('gads-content').style.display='none';
+    return;
+  }
+  const totImpr =rows.reduce((s,r)=>s+(parseFloat(r['Impressions'])||0),0);
+  const totClicks=rows.reduce((s,r)=>s+(parseFloat(r['Clicks'])||0),0);
+  const totSpend =rows.reduce((s,r)=>s+(parseFloat(r['Spend'])||0),0);
+  const avgCTR  =totImpr>0?totClicks/totImpr*100:0;
+  const avgCPC  =totClicks>0?totSpend/totClicks:0;
+
+  document.getElementById('gads-metrics').innerHTML=
+    mc('Total spend',fmtEur(totSpend))+
+    mc('Impressions',fmt(totImpr))+
+    mc('Clicks',fmt(totClicks))+
+    mc('Gem. CTR',fmt(avgCTR,2)+'%')+
+    mc('Gem. CPC',fmtEur(avgCPC));
+
+  const byDay={};
+  rows.forEach(r=>{
+    const d=r['Day']||r['Date']||'';
+    if(!byDay[d])byDay[d]={clicks:0,spend:0,impr:0};
+    byDay[d].clicks+=parseFloat(r['Clicks'])||0;
+    byDay[d].spend +=parseFloat(r['Spend'])||0;
+    byDay[d].impr  +=parseFloat(r['Impressions'])||0;
+  });
+  const days=Object.keys(byDay).sort();
+  const lbl=days.map(d=>{const p=parseDate(d);return p?fmtLabel(p):d;});
+
+  mkChart('c-gads-clicks','bar',lbl,days.map(d=>byDay[d].clicks),'#4285f4');
+  mkChart('c-gads-spend','line',lbl,days.map(d=>parseFloat(byDay[d].spend.toFixed(2))),'#fbbc04',true);
+  mkChart('c-gads-impr','bar',lbl,days.map(d=>byDay[d].impr),'#8ab4f8');
+  mkChart('c-gads-ctr','line',lbl,days.map(d=>byDay[d].impr>0?parseFloat((byDay[d].clicks/byDay[d].impr*100).toFixed(2)):0),'#ea4335');
+
+  const byCamp={};
+  rows.forEach(r=>{
+    const c=r['Campaign']||'Onbekend';
+    if(!byCamp[c])byCamp[c]={impr:0,clicks:0,spend:0};
+    byCamp[c].impr  +=parseFloat(r['Impressions'])||0;
+    byCamp[c].clicks+=parseFloat(r['Clicks'])||0;
+    byCamp[c].spend +=parseFloat(r['Spend'])||0;
+  });
+  document.getElementById('gads-count').textContent=Object.keys(byCamp).length+' campagnes';
+  document.getElementById('gads-tbody').innerHTML=Object.entries(byCamp)
+    .sort((a,b)=>b[1].spend-a[1].spend)
+    .map(([n,d])=>`<tr><td>${n}</td><td>${fmt(d.impr)}</td><td>${fmt(d.clicks)}</td><td>${d.impr>0?fmt(d.clicks/d.impr*100,2)+'%':'—'}</td><td>${fmtEur(d.spend)}</td><td>${d.clicks>0?fmtEur(d.spend/d.clicks):'—'}</td></tr>`).join('');
+
+  document.getElementById('gads-loading').style.display='none';
+  document.getElementById('gads-content').style.display='block';
+}
+
+// ---- RENDER GA4 ----
+function renderGA4(rows){
+  document.getElementById('ga4-err').style.display='none';
+  if(!rows.length){
+    document.getElementById('ga4-loading').style.display='none';
+    document.getElementById('ga4-err').textContent='Geen GA4 data in geselecteerde periode.';
+    document.getElementById('ga4-err').style.display='block';
+    document.getElementById('ga4-content').style.display='none';
+    return;
+  }
+  const totSess  =rows.reduce((s,r)=>s+(parseFloat(r['Sessions'])||0),0);
+  const totEvents=rows.reduce((s,r)=>s+(parseFloat(r['Event Count'])||0),0);
+  const totKey   =rows.reduce((s,r)=>s+(parseFloat(r['Key Events'])||0),0);
+  const avgEng   =rows.length?rows.reduce((s,r)=>s+(parseFloat(r['Engagement Rate (%)'])||0),0)/rows.length:0;
+
+  document.getElementById('ga4-metrics').innerHTML=
+    mc('Sessies',fmt(totSess))+
+    mc('Gem. engagement',fmt(avgEng,1)+'%')+
+    mc('Events',fmt(totEvents))+
+    mc('Key events',fmt(totKey))+
+    mc('Events/sessie',totSess>0?fmt(totEvents/totSess,1):'—');
+
+  // Organic per day
+  const orgRows=rows.filter(r=>(r['Channel Group']||'').toLowerCase().includes('organic'));
+  const byDayOrg={};
+  orgRows.forEach(r=>{const d=r['Date']||'';if(!byDayOrg[d])byDayOrg[d]=0;byDayOrg[d]+=parseFloat(r['Sessions'])||0;});
+  const orgDays=Object.keys(byDayOrg).sort();
+  mkChart('c-ga4-organic','line',orgDays.map(d=>{const p=parseDate(d);return p?fmtLabel(p):d;}),orgDays.map(d=>byDayOrg[d]),'#34a853',true);
+
+  // Sessions per channel
+  const byCh={};
+  rows.forEach(r=>{
+    const ch=r['Channel Group']||'Onbekend';
+    if(!byCh[ch])byCh[ch]={sess:0,eng:[],time:[],events:0,key:0};
+    byCh[ch].sess  +=parseFloat(r['Sessions'])||0;
+    byCh[ch].eng.push(parseFloat(r['Engagement Rate (%)'])||0);
+    byCh[ch].time.push(parseFloat(r['Avg Engagement Time (sec)'])||0);
+    byCh[ch].events+=parseFloat(r['Event Count'])||0;
+    byCh[ch].key   +=parseFloat(r['Key Events'])||0;
+  });
+  const chNames=Object.keys(byCh).sort((a,b)=>byCh[b].sess-byCh[a].sess);
+
+  if(charts['c-ga4-channels'])charts['c-ga4-channels'].destroy();
+  charts['c-ga4-channels']=new Chart(document.getElementById('c-ga4-channels'),{
+    type:'bar',
+    data:{labels:chNames,datasets:[{data:chNames.map(c=>byCh[c].sess),backgroundColor:COLORS.slice(0,chNames.length),borderRadius:3,borderSkipped:false}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#6b7280',font:{size:9}}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#6b7280',font:{size:9}}}}}
+  });
+
+  // Events per day
+  const byDayEv={};
+  rows.forEach(r=>{const d=r['Date']||'';if(!byDayEv[d])byDayEv[d]=0;byDayEv[d]+=parseFloat(r['Event Count'])||0;});
+  const evDays=Object.keys(byDayEv).sort();
+  mkChart('c-ga4-events','bar',evDays.map(d=>{const p=parseDate(d);return p?fmtLabel(p):d;}),evDays.map(d=>byDayEv[d]),'#8ab4f8');
+
+  // Key events per day
+  const byDayKey={};
+  rows.forEach(r=>{const d=r['Date']||'';if(!byDayKey[d])byDayKey[d]=0;byDayKey[d]+=parseFloat(r['Key Events'])||0;});
+  const keyDays=Object.keys(byDayKey).sort();
+  mkChart('c-ga4-keyevents','bar',keyDays.map(d=>{const p=parseDate(d);return p?fmtLabel(p):d;}),keyDays.map(d=>byDayKey[d]),'#34a853');
+
+  // Engagement per channel (horizontal)
+  if(charts['c-ga4-engagement'])charts['c-ga4-engagement'].destroy();
+  charts['c-ga4-engagement']=new Chart(document.getElementById('c-ga4-engagement'),{
+    type:'bar',
+    data:{labels:chNames,datasets:[{data:chNames.map(c=>parseFloat((byCh[c].eng.reduce((a,b)=>a+b,0)/byCh[c].eng.length).toFixed(1))),backgroundColor:'rgba(251,188,4,0.7)',borderRadius:3,borderSkipped:false}]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#6b7280',font:{size:9}},max:100},y:{grid:{display:false},ticks:{color:'#6b7280',font:{size:10}}}}}
+  });
+
+  document.getElementById('ga4-count').textContent=chNames.length+' kanalen';
+  document.getElementById('ga4-tbody').innerHTML=chNames.map(ch=>{
+    const d=byCh[ch];
+    const pct=totSess>0?d.sess/totSess*100:0;
+    const avgE=d.eng.length?d.eng.reduce((a,b)=>a+b,0)/d.eng.length:0;
+    const avgT=d.time.length?d.time.reduce((a,b)=>a+b,0)/d.time.length:0;
+    return`<tr><td>${ch}</td><td>${fmt(d.sess)}</td><td>${fmt(pct,1)}%</td><td>${fmt(avgE,1)}%</td><td>${fmt(avgT,0)}</td><td>${fmt(d.events)}</td><td>${fmt(d.key)}</td></tr>`;
+  }).join('');
+
+  document.getElementById('ga4-loading').style.display='none';
+  document.getElementById('ga4-content').style.display='block';
+}
+
+// ---- RENDER OVERVIEW ----
+function renderOverview(gadsRows,ga4Rows){
+  const totSpend =gadsRows.reduce((s,r)=>s+(parseFloat(r['Spend'])||0),0);
+  const totClicks=gadsRows.reduce((s,r)=>s+(parseFloat(r['Clicks'])||0),0);
+  const totSess  =ga4Rows.reduce((s,r)=>s+(parseFloat(r['Sessions'])||0),0);
+  const totKey   =ga4Rows.reduce((s,r)=>s+(parseFloat(r['Key Events'])||0),0);
+  const cps      =totKey>0?totSpend/totKey:0;
+
+  document.getElementById('ov-metrics').innerHTML=
+    mc('Totaal ad spend',fmtEur(totSpend))+
+    mc('Paid clicks',fmt(totClicks))+
+    mc('Alle sessies',fmt(totSess))+
+    mc('Key events',fmt(totKey))+
+    mc('Kosten/key event',fmtEur(cps));
+
+  const byCh={};
+  ga4Rows.forEach(r=>{
+    const ch=r['Channel Group']||'Onbekend';
+    if(!byCh[ch])byCh[ch]=0;
+    byCh[ch]+=parseFloat(r['Sessions'])||0;
+  });
+
+  const paidSess=Object.entries(byCh).filter(([k])=>k.toLowerCase().includes('paid')).reduce((s,[,v])=>s+v,0);
+  const orgSess =Object.entries(byCh).filter(([k])=>k.toLowerCase().includes('organic')).reduce((s,[,v])=>s+v,0);
+  const otherSess=totSess-paidSess-orgSess;
+
+  if(charts['c-ov-donut'])charts['c-ov-donut'].destroy();
+  charts['c-ov-donut']=new Chart(document.getElementById('c-ov-donut'),{
+    type:'doughnut',
+    data:{labels:['Paid','Organisch','Overige'],datasets:[{data:[paidSess,orgSess,otherSess],backgroundColor:['#4285f4','#34a853','#6b7280'],borderWidth:0}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{legend:{display:true,position:'bottom',labels:{color:'#9ca3af',font:{size:11},boxWidth:10,padding:12}}}}
+  });
+
+  const chNames=Object.keys(byCh).sort((a,b)=>byCh[b]-byCh[a]);
+  if(charts['c-ov-mix'])charts['c-ov-mix'].destroy();
+  charts['c-ov-mix']=new Chart(document.getElementById('c-ov-mix'),{
+    type:'bar',
+    data:{labels:chNames,datasets:[{data:chNames.map(c=>byCh[c]),backgroundColor:COLORS.slice(0,chNames.length),borderRadius:3,borderSkipped:false}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#6b7280',font:{size:9}}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#6b7280',font:{size:9}}}}}
+  });
+
+  const maxSess=Math.max(...Object.values(byCh),1);
+  document.getElementById('ov-bars').innerHTML=chNames.map((ch,i)=>{
+    const pct=maxSess>0?byCh[ch]/maxSess*100:0;
+    const sharePct=totSess>0?byCh[ch]/totSess*100:0;
+    return`<div style="margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+        <span style="font-size:12px">${ch}</span>
+        <span style="font-size:12px;color:#6b7280">${fmt(byCh[ch])} sess. &nbsp;<span style="color:${COLORS[i]||'#6b7280'}">${fmt(sharePct,1)}%</span></span>
+      </div>
+      <div class="bar-bg"><div class="bar-fill" style="width:${pct.toFixed(1)}%;background:${COLORS[i]||'#6b7280'}"></div></div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('ov-loading').style.display='none';
+  document.getElementById('ov-content').style.display='block';
+}
+
+function renderAll(){
+  renderGads(filterRows(allGads,'Day'));
+  renderGA4(filterRows(allGA4,'Date'));
+  renderOverview(filterRows(allGads,'Day'),filterRows(allGA4,'Date'));
+}
+
+function switchTab(tab,btn){
+  document.querySelectorAll('.pane').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('on'));
+  document.getElementById('pane-'+tab).classList.add('on');
+  btn.classList.add('on');
+}
+
+async function loadAll(){
+  document.getElementById('sync-status').textContent='Laden...';
+  ['gads','ga4'].forEach(t=>{
+    document.getElementById(t+'-loading').style.display='block';
+    document.getElementById(t+'-content').style.display='none';
+    document.getElementById(t+'-err').style.display='none';
+  });
+  document.getElementById('ov-loading').style.display='block';
+  document.getElementById('ov-content').style.display='none';
+  try{
+    const [gRes,ga4Res]=await Promise.all([fetch(GADS_URL),fetch(GA4_URL)]);
+    allGads=parseCSV(await gRes.text());
+    allGA4 =parseCSV(await ga4Res.text());
+
+    // Auto-detect date range from data
+    const ga4Dates=allGA4.map(r=>parseDate(r['Date']||'')).filter(Boolean);
+    const gadsDates=allGads.map(r=>parseDate(r['Day']||'')).filter(Boolean);
+    const allDates=[...ga4Dates,...gadsDates];
+
+    if(allDates.length&&!dateFrom){
+      const maxD=new Date(Math.max(...allDates));
+      const minD=new Date(Math.min(...allDates));
+      dateTo=new Date(maxD); dateTo.setHours(23,59,59,999);
+      dateFrom=new Date(maxD); dateFrom.setDate(maxD.getDate()-29); dateFrom.setHours(0,0,0,0);
+      if(dateFrom<minD) dateFrom=new Date(minD);
+      pickerFrom=new Date(dateFrom); pickerTo=new Date(maxD);
+      updateLabel();
+    }
+
+    renderAll();
+    document.getElementById('sync-status').textContent='Gesync: '+new Date().toLocaleTimeString('nl-BE');
+  }catch(e){
+    document.getElementById('sync-status').textContent='Fout bij laden';
+    ['gads','ga4'].forEach(t=>{
+      document.getElementById(t+'-loading').style.display='none';
+      const el=document.getElementById(t+'-err');
+      el.style.display='block';
+      el.textContent='Kon data niet laden. Controleer of de sheet gepubliceerd is. ('+e.message+')';
+    });
+  }
+}
+
+loadAll();
+</script>
+</body>
+</html>
